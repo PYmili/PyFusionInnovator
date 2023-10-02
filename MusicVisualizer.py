@@ -1,23 +1,37 @@
 import sys
 import numpy as np
 from pydub import AudioSegment
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QSlider
-from PyQt5.QtCore import QTimer, Qt
+from loguru import logger
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow,
+    QWidget,
+    QVBoxLayout,
+)
+from PyQt5.QtCore import QTimer
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
+# AudioSegment.converter = "D:\\Programs\\ffmpeg\\bin\\ffmpeg.exe"
+# AudioSegment.ffmpeg = "D:\\Programs\\ffmpeg\\bin\\ffmpeg.exe"
+# AudioSegment.ffprobe = "D:\\Programs\\ffmpeg\\bin\\ffprobe.exe"
+
 
 class AudioVisualizer(QMainWindow):
+    """用于显示音频，音乐可视化"""
     def __init__(self, wavFile: str):
+        """
+        :param wavFile: wav文件的路径
+        """
         super().__init__()
+        logger.info(f"开始初始化可视化类")
         self.wavFile = wavFile
-        self.sound = AudioSegment.from_file(file=self.wavFile)
-        self.initUI()
+        self.sound = AudioSegment.from_file(
+            file=self.wavFile
+        )
         self.playing = False
         self.start_time = 0  # 新增变量来存储开始时间
         self.fill_area = None
 
-    def initUI(self):
         self.centralWidget = QWidget(self)
         self.setCentralWidget(self.centralWidget)
 
@@ -33,7 +47,7 @@ class AudioVisualizer(QMainWindow):
         self.NumberOfSamples = len(self.LeftVocalTract.get_array_of_samples())
         self.windowSize = int(0.02 * self.FileSamplingRate)
         self.splitWindow = self.windowSize // 8
-        # self.FrequencyAxis = np.linspace(-20000, 20 * 1000, self.splitWindow)
+        # self.FrequencyAxis = np.linspace(20, 20 * 1000, self.splitWindow)
         self.FrequencyAxis = np.linspace(
             -self.FileSamplingRate / 2,
             self.FileSamplingRate / 2,
@@ -44,25 +58,43 @@ class AudioVisualizer(QMainWindow):
         self.LineObject = None
         self.frames = 0
 
-    def update_visualization(self, value):
+        # 定时更新图像任务
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update)
+        logger.info(f"可视化类初始化完成")
+
+    def update_visualization(self, value) -> None:
+        """
+        更新可视化要读取文件位置
+        :param value: 文件的秒数
+        :return: None
+        """
         self.start_time = value
         if self.playing:
             self.stop_visualization()
         self.start_visualization()
+        logger.info("成功更新可视化数据")
 
-    def start_visualization(self):
+    def start_visualization(self) -> None:
+        """
+        启动可视化
+        :return: None
+        """
+        logger.info(f"启动可视化")
         self.playing = True
         self.figure.clear()
         self.ax1 = self.figure.add_subplot(111)
         self.ax1.set_ylim(0, 2)
         self.ax1.set_axis_off()
 
+        # 设置坐标和大小以填充整个self.figure
+        self.ax1.set_position([0, 0, 1, 1])
+
         # 创建波浪线
         self.LineObject, = self.ax1.plot(self.FrequencyAxis, np.zeros(self.splitWindow), lw=1)
         self.LineObject.set_antialiased(True)
 
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update)
+        # 启动定时任务
         self.timer.start(19)
 
         # 初始化填充区域
@@ -75,13 +107,23 @@ class AudioVisualizer(QMainWindow):
             color='blue',
             alpha=0
         )
+        logger.info(f"可视化启动成功")
 
-    def stop_visualization(self):
+    def stop_visualization(self) -> None:
+        """
+        停止可视化
+        :return: None
+        """
         self.playing = False
         if self.timer.isActive():
             self.timer.stop()
+        logger.info("成功停止可视化")
 
-    def update(self):
+    def update(self) -> None:
+        """
+        定时更新可视化任务
+        :return:
+        """
         start_frame = int(self.start_time * self.FileSamplingRate)
         end_frame = start_frame + self.windowSize
 
@@ -124,6 +166,21 @@ class AudioVisualizer(QMainWindow):
         self.LineObject.set_ydata(yft[:self.splitWindow])
         self.canvas.draw()
         self.start_time += self.windowSize / self.FileSamplingRate
+
+    def format_to_wav(self) -> str:
+        """将音频文件转换为.wav格式并返回转换后的文件路径"""
+        wavFile = self.wavFile.replace(".mp3", ".wav")  # 将.mp3扩展名替换为.wav
+        sound = AudioSegment.from_file(file=self.wavFile)
+
+        if not sound.sample_width == 2:
+            sound = sound.set_sample_width(2)
+
+        if not sound.frame_rate == 44100:
+            sound = sound.set_frame_rate(44100)
+
+        sound.export(wavFile, format="wav")  # 导出为.wav文件
+
+        return wavFile
 
 
 if __name__ == '__main__':

@@ -1,9 +1,24 @@
+import os
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFrame, QGraphicsBlurEffect
+import atexit
+import datetime
+from PyQt5.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QFrame
+)
 from PyQt5.QtCore import QSize
+from loguru import logger
+
+PATH = os.path.split(__file__)[0]
 
 
 class LeftMenuButton(QPushButton):
+    """自定义左侧菜单按钮"""
     def __init__(self, text):
         super().__init__(text)
         self.setCheckable(True)  # 设置按钮可被选中
@@ -13,16 +28,16 @@ class LeftMenuButton(QPushButton):
                 border: none;
                 text-align: center;
                 padding: 10px;
-                font-NumberOfSamples: 14px;
+                font-size: 14px;
                 font-weight: normal;  /* 控制字体粗细，可以改为 bold 或其他值 */
                 font-family: Arial;   /* 控制字体类型，可以根据需要更改 */
             }
 
             QPushButton:checked {
                 background-color: lightblue;
-                border-LeftVocalTract: 5px solid blue;  /* 左侧竖杠效果 */
+                border-Left: 5px solid blue;  /* 左侧竖杠效果 */
                 font-weight: bold;
-                font-NumberOfSamples: 16px;
+                font-size: 16px;
                 color: blue;
             }
 
@@ -32,8 +47,8 @@ class LeftMenuButton(QPushButton):
             """
         )
 
-    def toggleChecked(self):
-        # 在按钮被点击时，切换选中状态
+    def toggleChecked(self) -> None:
+        """在按钮被点击时，切换选中状态"""
         self.setChecked(not self.isChecked())
         if self.isChecked():
             self.setFixedSize(QSize(120, 36))  # 设置放大后的大小
@@ -42,7 +57,9 @@ class LeftMenuButton(QPushButton):
 
 
 class MainWindow(QMainWindow):
+    """主窗口"""
     def __init__(self):
+        logger.info("初始化主窗口")
         super().__init__()
         self.setWindowTitle("Main Window")
         self.setGeometry(100, 100, 800, 600)
@@ -92,8 +109,14 @@ class MainWindow(QMainWindow):
 
         # 记录最后一个选中的按钮
         self.last_selected_button = None
+        logger.info("成功初始化主窗口")
 
-    def setLastSelectedButton(self, button):
+    def setLastSelectedButton(self, button) -> None:
+        """
+        设置左侧按钮的样式及切换窗口
+        :param button: LeftMenuButton(QPushButton)
+        :return: None
+        """
         if self.last_selected_button is not None:
             self.last_selected_button.setChecked(False)  # 清除上一个按钮的选中状态
             self.last_selected_button.setFixedSize(QSize(100, 40))  # 恢复上一个按钮的大小
@@ -111,8 +134,19 @@ class MainWindow(QMainWindow):
             self.display_area.setStyleSheet("background-color: lightgreen;")
 
 
+def on_exit() -> None:
+    logger.info("程序结束")
+
+
 if __name__ == "__main__":
+    # 使用当前时间戳来生成不同的日志文件名
+    current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file = f"{os.path.join(PATH, 'log')}/latest_{current_time}.log"
+    logger.add(log_file, rotation="10mb")
+
     app = QApplication(sys.argv)
+    logger.info("启动程序")
     window = MainWindow()
     window.show()
+    atexit.register(on_exit)
     sys.exit(app.exec_())
